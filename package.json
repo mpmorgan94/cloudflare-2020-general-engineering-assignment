@@ -1,5 +1,4 @@
 {
-  "type": "module",
   "private": true,
   "name": "cloudflare_project",
   "version": "1.0.0",
