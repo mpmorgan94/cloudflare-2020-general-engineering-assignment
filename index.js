@@ -1,16 +1,62 @@
-// Define links as JSON objecs to use in website
+// Author: John Patranella
+// References: https://developers.cloudflare.com/workers/ 
+// Cloudflare Workers documentation
+
+// Define links as JSON objecs
 personalPageLink = { "name": "Personal Page", "url": "http://people.tamu.edu/~mpatranella/csce315PersonalPage/index.html" };
 gitHubLink = { "name": "GitHub", "url": "https://github.com/mpmorgan94" };
 cloudflareLink = { "name": "Cloudflare", "url": "https://www.cloudflare.com/" };
 
-// Create Array of the defined links
+// Define social links as JSON objects
+facebookLink = { "imgURL": "Facebook", "url": "https://www.facebook.com/" };
+twitterLink = { "imgURL": "Twitter", "url": "https://www.twitter.com/" };
+
+// Create Array of the defined links and social links
+var mySocials = [facebookLink, twitterLink];
 var myLinksArray = [personalPageLink, gitHubLink, cloudflareLink];
 const json = JSON.stringify(myLinksArray, null, 2)
 
 addEventListener('fetch', event => {
-  console.log(event.request.url);
   event.respondWith(handleRequest(event.request))
 })
+
+// Will modify the retrieved html and add my links
+class LinksTransformer {
+
+  constructor(attributeName) {
+    this.attributeName = attributeName;
+  }
+
+  async element(element) {
+    // Append links to links div
+    var i;
+    for (i = 0; i < myLinksArray.length; i++) {
+      element.append('\n        ');
+      element.append('<a href=' + myLinksArray[i].url + '>'
+        + myLinksArray[i].name + '</a>', {html: true});
+    }
+    element.append('\n      ');
+    
+  }
+}
+
+// Will modify the retrieved html and add socials
+class SocialsTransformer {
+
+  constructor(attributeName) {
+    this.attributeName = attributeName;
+  }
+
+  async element(element) {
+    // Append links to links div
+    var i;
+    for (i = 0; i < mySocials.length; i++) {
+      element.append('\n        ');
+      element.append('<a href=' + mySocials[i].url + '><svg>' + mySocials[i].imgURL + '</svg></a>', {html: true});
+    }
+    element.append('\n      ');
+  }
+}
 
 /**
  * gatherResponse awaits and returns a response body as a string.
@@ -46,12 +92,25 @@ async function handleRequest(request) {
                   'status': 500},
     })
   }
-  // Otherwise, fetch static page
+  // Otherwise, fetch static page and serve it
   else {
     const init = { headers: {"content-type": "text/html;charset=UTF-8",},}
     const response = await fetch("https://static-links-page.signalnerve.workers.dev", init);
-    //const result = response.text;
-    const result = await gatherResponse(response);
-    return new Response(result, init);
+    return rewriter.transform(response);
   }
 }
+
+// The html rewriter which modifies html documents held in the server
+const rewriter = new HTMLRewriter()
+  .on("div#links", new LinksTransformer("href"))
+  .on("div#social", new SocialsTransformer("href"))
+  .on("h1#name", { element: (element) => element.setInnerContent("John Patranella") })
+  .on("div#profile", { element: (element) => element.removeAttribute("style") })
+  //.on("div#social", { element: (element) => element.removeAttribute("style") })
+  .on("img#avatar", { element: (element) =>
+    element.setAttribute("src", "https://scontent-dfw5-1.xx." +
+    "fbcdn.net/v/t1.0-9/34175279_2001306963247680_7978456408691" +
+    "572736_n.jpg?_nc_cat=110&_nc_sid=85a577&_nc_ohc=P0sfLB2srQwAX" +
+    "8gxVtw&_nc_ht=scontent-dfw5-1.xx&oh=7ab60ca0ae56ce4e1ff409857ba4" +
+    "4786&oe=5FA4F2DC") })
+  .on("title", { element: (element) => element.setInnerContent("John Patranella") })
